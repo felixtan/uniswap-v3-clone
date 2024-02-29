@@ -19,6 +19,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
         -  store as mutable variable
  */
 
+error InvalidTickRange();
+error ZeroLiquidity();
+error InsufficientInputAmount();
+
 library Tick {
     struct Info {
         bool initialized;
@@ -68,6 +72,12 @@ library Position {
     }
 }
 
+contract IUniswapV3MintCallback {
+    constructor(address _sender) {}
+
+    function uniswapV3MintCallback(uint256 _amount0, uint256 _amount1) public {}
+}
+
 contract UniswapV3Pool {
     // "using A for B" lets you extend type B with functions from library contract A
     using Tick for mapping(int24 => Tick.Info);
@@ -98,6 +108,8 @@ contract UniswapV3Pool {
     mapping(int24 => Tick.Info) public ticks;
 
     mapping(bytes32 => Position.Info) public positions;
+
+    event Mint(address indexed _from, address indexed _owner, int24 _lowerTick, int24 _upperTick, uint128 _amount, uint256 _amount0, uint256 _amount1);
 
     constructor(address _token0, address _token1, uint160 sqrtPriceX96, int24 tick) {
         token0 = _token0;
@@ -131,36 +143,36 @@ contract UniswapV3Pool {
         ticks.update(lowerTick, amount);
         ticks.update(upperTick, amount);
 
-        // Position.Info storage position = positions.get(
-        //     owner,
-        //     lowerTick,
-        //     upperTick,
-        // );
-        // position.update(amount);
+        Position.Info storage position = positions.get(
+            owner,
+            lowerTick,
+            upperTick
+        );
+        position.update(amount);
 
         // amounts that user must deposit
-        // amount0 = 0.998976618347425280 ether;
-        // amount1 = 5000 ether;
+        amount0 = 0.998976618347425280 ether;
+        amount1 = 5000 ether;
 
-        // // update liquidity
-        // liquidity += uint128(amount);
+        // update liquidity
+        liquidity += uint128(amount);
 
-        // // transfer tokens from user to pool
-        // uint256 balance0Before;
-        // uint256 balance1Before;
-        // if (amount0 > 0) balance0Before = balance0();
-        // if (amount1 > 0) balance1Before = balance1();
-        // IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(
-        //     amount0,
-        //     amount1,
-        // );
-        // if (amount0 > 0 && balance0Before + amount0 > balance0())
-        //     revert InsufficientInputAmount();
-        // if (amount1 > 0 && balance1Before + amount1 > balance1())
-        //     revert InsufficientInputAmount();
+        // transfer tokens from user to pool
+        uint256 balance0Before;
+        uint256 balance1Before;
+        if (amount0 > 0) balance0Before = balance0();
+        if (amount1 > 0) balance1Before = balance1();
+        IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(
+            amount0,
+            amount1
+        );
+        if (amount0 > 0 && balance0Before + amount0 > balance0())
+            revert InsufficientInputAmount();
+        if (amount1 > 0 && balance1Before + amount1 > balance1())
+            revert InsufficientInputAmount();
 
-        // // good practice to fire an event whenever the contract’s state is changed to let blockchain explorer know when this happened
-        // emit Mint(msg.sender, owner, lowerTick, upperTick, amount, amount0, amount1);
+        // good practice to fire an event whenever the contract’s state is changed to let blockchain explorer know when this happened
+        emit Mint(msg.sender, owner, lowerTick, upperTick, amount, amount0, amount1);
     }
 
     function balance0() internal returns (uint256 balance) {
