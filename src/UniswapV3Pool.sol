@@ -52,6 +52,7 @@ library Position {
         uint128 liquidity;
     }
 
+    // add liquidity to a position
     function update(Info storage self, uint128 liquidityDelta) internal {
         uint128 liquidityBefore = self.liquidity;
         uint128 liquidityAfter = liquidityBefore + liquidityDelta;
@@ -67,6 +68,7 @@ library Position {
         position = self[
             // hash the three to make storing data cheaper: when hashed, every key will take 
             // 32 bytes, instead of 96 bytes when owner, lowerTick, and upperTick are separate keys
+            // owner, lowerTick, and upperTick uniquely define a position
             keccak256(abi.encodePacked(owner, lowerTick, upperTick))
         ];
     }
@@ -151,6 +153,7 @@ contract UniswapV3Pool {
         position.update(amount);
 
         // amounts that user must deposit
+        // temp hard code
         amount0 = 0.998976618347425280 ether;
         amount1 = 5000 ether;
 
@@ -162,12 +165,18 @@ contract UniswapV3Pool {
         uint256 balance1Before;
         if (amount0 > 0) balance0Before = balance0();
         if (amount1 > 0) balance1Before = balance1();
+
+        // caller is expected to implement uniswapV3MintCallback
         IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(
             amount0,
             amount1
         );
+
+        // require balance to have increased by at least amount0
         if (amount0 > 0 && balance0Before + amount0 > balance0())
             revert InsufficientInputAmount();
+
+        // require balance to have increased by at least amount1
         if (amount1 > 0 && balance1Before + amount1 > balance1())
             revert InsufficientInputAmount();
 
