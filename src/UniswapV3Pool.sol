@@ -184,11 +184,11 @@ contract UniswapV3Pool {
         emit Mint(msg.sender, owner, lowerTick, upperTick, amount, amount0, amount1);
     }
 
-    function balance0() internal returns (uint256 balance) {
+    function balance0() internal view returns (uint256 balance) {
         balance = IERC20(token0).balanceOf(address(this));
     }
 
-    function balance1() internal returns (uint256 balance) {
+    function balance1() internal view returns (uint256 balance) {
         balance = IERC20(token1).balanceOf(address(this));
     }
 }
